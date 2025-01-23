@@ -2,6 +2,9 @@ package servlet;
 
 import java.io.IOException;
 import java.sql.Date;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -15,66 +18,69 @@ import model.Books;
 //UpdateBookServlet: 書籍情報の更新を処理するサーブレット
 @WebServlet("/UpdateBookServlet")
 public class UpdateBookServlet extends HttpServlet {
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        try {
-            // クライアントから送信された更新対象の書籍情報を取得
-            int id = Integer.parseInt(request.getParameter("id"));
-            String title = request.getParameter("title");
-            String author = request.getParameter("author");
-            String publisher = request.getParameter("publisher");
-            String publishDateStr = request.getParameter("publishdate");
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
 
-            // エラーメッセージリストを作成
-            StringBuilder errorMessage = new StringBuilder();
+		// フォーム入力値を取得
+		int id = Integer.parseInt(request.getParameter("id")); // IDを取得
+		String title = request.getParameter("title");
+		String author = request.getParameter("author");
+		String publisher = request.getParameter("publisher");
+		String publishDateStr = request.getParameter("publishDate");
 
-            // 入力値のバリデーション
-            if (title == null || title.trim().isEmpty()) {
-                errorMessage.append("タイトルを入力してください。<br>");
-            }
-            if (author == null || author.trim().isEmpty()) {
-                errorMessage.append("著者を入力してください。<br>");
-            }
+		// エラーメッセージのリストを作成
+		List<String> errorMessages = new ArrayList<>();
 
-            // 出版日の文字列をSQLのDate型に変換
-            Date publishDate = null;
-            if (publishDateStr != null && !publishDateStr.isEmpty()) {
-                try {
-                    publishDate = Date.valueOf(publishDateStr);
-                } catch (IllegalArgumentException e) {
-                    errorMessage.append("出版日は正しい形式で入力してください。<br>");
-                }
-            }
+		// 入力値のバリデーション
+		if (title == null || title.trim().isEmpty()) {
+			errorMessages.add("タイトルが入力されていません");
+		}
+		if (author == null || author.trim().isEmpty()) {
+			errorMessages.add("著者が入力されていません");
+		}
+		if (publisher == null || publisher.trim().isEmpty()) {
+			errorMessages.add("出版社が入力されていません");
+		}
 
-            // エラーメッセージが存在する場合
-            if (errorMessage.length() > 0) {
-                request.setAttribute("errorMessage", errorMessage.toString());
-                request.getRequestDispatcher("WEB-INF/jsp/EditBook.jsp").forward(request, response);
-                return;
-            }
+		// 出版日のバリデーションと変換
+		Date publishDate = null;
+		if (publishDateStr == null || publishDateStr.trim().isEmpty()) {
+			errorMessages.add("出版日が入力されていません");
+		} else {
+			try {
+				publishDate = Date.valueOf(publishDateStr);
+			} catch (IllegalArgumentException e) {
+				errorMessages.add("出版日は正しい形式で入力してください。");
+			}
+		}
 
-            // 書籍オブジェクトを作成
-            Books book = new Books(id, title, author, publisher, publishDate, null);
+		// エラーがある場合、入力フォームに戻す
+		if (!errorMessages.isEmpty()) {
+		    // 入力値を保持するためにリクエストスコープに設定
+		    request.setAttribute("book", new Books(0, title, author, publisher, publishDate, null));
+		    request.setAttribute("errorMessages", errorMessages);
 
-            // DAOを使用して書籍情報を更新
-            BooksDAO booksDAO = new BooksDAO();
-            boolean updateSuccess = booksDAO.updateBook(book);
+		    // フォワードしてフォームに戻る
+		    request.getRequestDispatcher("/WEB-INF/jsp/EditBook.jsp").forward(request, response);
+		    return;
+		}
 
-            // 更新結果に応じて処理を分岐
-            if (updateSuccess) {
-                request.setAttribute("message", "書籍情報が更新されました。");
-                request.getRequestDispatcher("WEB-INF/jsp/bookList.jsp").forward(request, response);
-            } else {
-                request.setAttribute("errorMessage", "書籍情報の更新に失敗しました。");
-                request.getRequestDispatcher("WEB-INF/jsp/EditBook.jsp").forward(request, response);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            request.setAttribute("errorMessage", "システムエラーが発生しました。");
-            request.getRequestDispatcher("WEB-INF/jsp/EditBook.jsp").forward(request, response);
-        }
-    }
+		// 書籍データの作成
+	    Books bookToUpdate = new Books(id, title, author, publisher, publishDate, new Timestamp(System.currentTimeMillis()));
+
+	    // 書籍をデータベースで更新
+	    BooksDAO booksDAO = new BooksDAO();
+	    boolean isUpdated = booksDAO.updateBook(bookToUpdate); // 更新処理を呼び出し
+	    System.out.println("Book updated status: " + isUpdated); // デバッグ用ログ
+
+	    // 成功時・失敗時の処理
+	    if (isUpdated) {
+	        response.sendRedirect("BookListServlet"); // 更新成功時に一覧画面へリダイレクト
+	    } else {
+	        request.setAttribute("errorMessages", List.of("書籍の更新に失敗しました。"));
+	        request.getRequestDispatcher("/WEB-INF/jsp/EditBook.jsp").forward(request, response); // フォーム画面にフォワード
+	    }
+	}
 }
-

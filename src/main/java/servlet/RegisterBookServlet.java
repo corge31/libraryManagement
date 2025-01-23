@@ -77,7 +77,7 @@ public class RegisterBookServlet extends HttpServlet {
 			response.sendRedirect("BookListServlet");// 登録成功時に一覧画面へリダイレクト
 		} else {
 			request.setAttribute("errorMessages", List.of("書籍の登録に失敗しました。"));
-			request.getRequestDispatcher("/WEB-INF/jsp/RegisterBookForm.jsp").forward(request, response);// フォーム画面にフォワード
+			request.getRequestDispatcher("/WEB-INF/jsp/RegisterBook.jsp").forward(request, response);// フォーム画面にフォワード
 		}
 	}
 }
